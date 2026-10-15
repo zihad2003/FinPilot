@@ -1,5 +1,14 @@
 import { useEffect, useState } from "react";
-import { api, Proposal, usd } from "../api";
+import { api, Proposal } from "@/api";
+import { PageHeader } from "@/components/PageHeader";
+import { LoadingBlock } from "@/components/LoadingBlock";
+import { EmptyState } from "@/components/EmptyState";
+import { Money } from "@/components/Money";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 export default function Inbox() {
   const [rows, setRows] = useState<Proposal[]>([]);
@@ -27,11 +36,16 @@ export default function Inbox() {
     setError("");
     try {
       const result = await api.approve(id);
-      setNotice(
-        result.executed
-          ? `Approved. Checking is now ${usd(result.result?.balance || 0)}.`
-          : result.reason,
-      );
+      if (result.executed && result.result?.balance != null) {
+        setNotice(
+          `Approved. Checking is now ${result.result.balance.toLocaleString("en-US", {
+            style: "currency",
+            currency: "USD",
+          })}.`,
+        );
+      } else {
+        setNotice(result.reason || "Approved.");
+      }
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Approval failed.");
@@ -61,51 +75,68 @@ export default function Inbox() {
     }
   }
 
-  if (loading) return <p>Loading the inbox…</p>;
+  if (loading) return <LoadingBlock rows={3} />;
 
   return (
     <div className="space-y-4">
-      <h1 className="font-serif text-4xl">Approval Inbox</h1>
-      <p className="text-sm text-ink/70">Cards expire 15 minutes after they are created. T1 proposals cannot be executed.</p>
-      {error ? <p className="text-clay">{error}</p> : null}
-      {notice ? <p className="text-pine">{notice}</p> : null}
-      {rows.length === 0 ? <p>No proposals yet. The inbox is empty.</p> : null}
+      <PageHeader
+        title="Approval Inbox"
+        description="Cards expire 15 minutes after they are created. T1 proposals cannot be executed."
+      />
+      {error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+      {notice ? (
+        <Alert>
+          <AlertDescription>{notice}</AlertDescription>
+        </Alert>
+      ) : null}
+      {rows.length === 0 ? (
+        <EmptyState title="Nothing to approve" description="When the agent proposes a bill or transfer, it will show up here." />
+      ) : null}
       {rows.map((row) => (
-        <article key={row.id} className="rounded-2xl border border-line bg-card p-4">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="font-serif text-2xl">
-              {row.action_type.replaceAll("_", " ")} · {usd(Number(row.payload.amount || 0))}
-            </h2>
-            <span className="rounded-full bg-moss px-3 py-1 text-sm">{row.status}</span>
-          </div>
-          <p className="mt-2">{row.reason}</p>
-          <p className="mt-2 text-sm">{row.expected_effect}</p>
-          <p className="mt-2 text-sm text-ink/70">
-            Policy rule {row.rule_id}. Evidence transactions {(row.evidence_ids || []).map((id) => `#${id}`).join(", ") || "none"}.
-          </p>
+        <Card key={row.id}>
+          <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-2 space-y-0">
+            <div>
+              <CardTitle className="capitalize">
+                {row.action_type.replaceAll("_", " ")} · <Money value={Number(row.payload.amount || 0)} />
+              </CardTitle>
+              <CardDescription className="mt-1">{row.expected_effect}</CardDescription>
+            </div>
+            <Badge variant={row.status === "pending" ? "default" : "secondary"}>{row.status}</Badge>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <p>{row.reason}</p>
+            <p className="text-muted-foreground">
+              Policy rule <span className="font-medium text-foreground">{row.rule_id}</span>. Evidence{" "}
+              {(row.evidence_ids || []).map((id) => `#${id}`).join(", ") || "none"}.
+            </p>
+          </CardContent>
           {row.status === "pending" ? (
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <button className="rounded-lg bg-pine px-3 py-2 text-white" onClick={() => approve(row.id)}>
-                Approve
-              </button>
-              <button className="rounded-lg border border-line px-3 py-2" onClick={() => reject(row.id)}>
+            <CardFooter className="flex flex-wrap items-center gap-2">
+              <Button onClick={() => approve(row.id)}>Approve</Button>
+              <Button variant="outline" onClick={() => reject(row.id)}>
                 Reject
-              </button>
-              <input
-                className="w-28 rounded-lg border border-line px-2 py-2"
+              </Button>
+              <Input
+                className="w-28"
                 aria-label="Edit amount"
                 placeholder="New amount"
                 value={amounts[row.id] || ""}
                 onChange={(event) => setAmounts({ ...amounts, [row.id]: event.target.value })}
               />
-              <button className="rounded-lg border border-line px-3 py-2" onClick={() => saveAmount(row.id)}>
+              <Button variant="secondary" onClick={() => saveAmount(row.id)}>
                 Edit
-              </button>
-            </div>
+              </Button>
+            </CardFooter>
           ) : (
-            <p className="mt-3 text-sm">This card cannot move money in its current state.</p>
+            <CardFooter>
+              <p className="text-sm text-muted-foreground">This card cannot move money in its current state.</p>
+            </CardFooter>
           )}
-        </article>
+        </Card>
       ))}
     </div>
   );

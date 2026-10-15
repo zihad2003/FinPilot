@@ -1,5 +1,15 @@
 import { useEffect, useState } from "react";
-import { api, AuditRow } from "../api";
+import { Download } from "lucide-react";
+import { api, AuditRow } from "@/api";
+import { PageHeader } from "@/components/PageHeader";
+import { LoadingBlock } from "@/components/LoadingBlock";
+import { EmptyState } from "@/components/EmptyState";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export default function Audit() {
   const [rows, setRows] = useState<AuditRow[]>([]);
@@ -29,54 +39,70 @@ export default function Audit() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-serif text-4xl">Audit log</h1>
-          <p className="text-sm text-ink/70">Every policy decision is appended here.</p>
-        </div>
-        <button className="rounded-lg border border-line bg-white px-3 py-2" onClick={exportCsv}>
-          Export CSV
-        </button>
-      </div>
-      <label className="block text-sm">
-        Outcome
-        <select className="ml-2 rounded border border-line px-2 py-1" value={outcome} onChange={(event) => setOutcome(event.target.value)}>
+      <PageHeader
+        title="Audit log"
+        description="Every policy decision is appended here."
+        action={
+          <Button variant="outline" onClick={exportCsv}>
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
+        }
+      />
+      <div className="flex items-center gap-2">
+        <Label htmlFor="outcome">Outcome</Label>
+        <select
+          id="outcome"
+          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+          value={outcome}
+          onChange={(event) => setOutcome(event.target.value)}
+        >
           <option value="">All</option>
           <option>ALLOW</option>
           <option>REQUIRE_APPROVAL</option>
           <option>DENY</option>
         </select>
-      </label>
-      {error ? <p className="text-clay">{error}</p> : null}
-      {loading ? <p>Loading the log…</p> : null}
-      {!loading && rows.length === 0 ? <p>No audit rows for this filter.</p> : null}
+      </div>
+      {error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+      {loading ? <LoadingBlock rows={2} /> : null}
+      {!loading && rows.length === 0 ? (
+        <EmptyState title="No audit rows for this filter" description="Try clearing the outcome filter." />
+      ) : null}
       {!loading && rows.length > 0 ? (
-        <div className="overflow-x-auto rounded-2xl border border-line bg-card">
-          <table className="w-full text-left text-sm">
-            <thead className="text-ink/60">
-              <tr>
-                <th className="px-3 py-2">Time</th>
-                <th>Actor</th>
-                <th>Tool</th>
-                <th>Outcome</th>
-                <th>Rule</th>
-                <th>Result</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id} className="border-t border-line">
-                  <td className="px-3 py-2 whitespace-nowrap">{row.timestamp.replace("T", " ").slice(0, 19)}</td>
-                  <td>{row.actor}</td>
-                  <td>{row.tool}</td>
-                  <td>{row.policy_outcome}</td>
-                  <td>{row.rule_id}</td>
-                  <td>{row.result}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Card className="overflow-hidden">
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Time</TableHead>
+                  <TableHead>Actor</TableHead>
+                  <TableHead>Tool</TableHead>
+                  <TableHead>Outcome</TableHead>
+                  <TableHead>Rule</TableHead>
+                  <TableHead>Result</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell className="whitespace-nowrap">{row.timestamp.replace("T", " ").slice(0, 19)}</TableCell>
+                    <TableCell>{row.actor}</TableCell>
+                    <TableCell>{row.tool}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{row.policy_outcome}</Badge>
+                    </TableCell>
+                    <TableCell>{row.rule_id}</TableCell>
+                    <TableCell className="max-w-xs truncate text-muted-foreground">{row.result}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       ) : null}
     </div>
   );

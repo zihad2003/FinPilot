@@ -1,5 +1,13 @@
 import { FormEvent, useState } from "react";
-import { api, ChatResponse } from "../api";
+import { api, ChatResponse } from "@/api";
+import { PageHeader } from "@/components/PageHeader";
+import { EmptyState } from "@/components/EmptyState";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
 
 type Message = { role: "user" | "assistant"; text: string; detail?: ChatResponse };
 
@@ -22,63 +30,86 @@ export default function Chat() {
       const body = response.error || response.answer || "No answer was returned.";
       setMessages((current) => [...current, { role: "assistant", text: body, detail: response }]);
     } catch (err) {
-      const messageText = err instanceof Error ? err.message : "Chat failed.";
-      setError(messageText);
+      setError(err instanceof Error ? err.message : "Chat failed.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="space-y-4">
-      <h1 className="font-serif text-4xl">Chat</h1>
-      <p className="text-sm text-ink/70">
-        Answers cite transaction ids. Money moves only when the policy engine allows it.
-      </p>
-      {error ? <p className="text-clay">{error}</p> : null}
-      <div className="space-y-3">
-        {messages.length === 0 ? <p className="text-sm">Ask about spending, bills, or a what-if.</p> : null}
-        {messages.map((message, index) => (
-          <article key={index} className="rounded-2xl border border-line bg-card p-4">
-            <p className="text-xs uppercase tracking-wide text-ink/50">{message.role}</p>
-            <p className="mt-2 whitespace-pre-wrap">{message.text}</p>
-            {message.detail?.tool_calls?.length ? (
-              <details className="mt-3 text-sm">
-                <summary>Tool calls and evidence</summary>
-                <ul className="mt-2 space-y-2">
-                  {message.detail.tool_calls.map((call, callIndex) => (
-                    <li key={callIndex}>
-                      <span className="font-semibold">{call.tool}</span> · {call.outcome}
-                      {call.tier ? ` · tier ${call.tier}` : ""} · {call.rule_id}
-                      {call.result && "transactions" in call.result ? (
-                        <span> · cited inside the result</span>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            ) : null}
-            {message.detail?.proposals?.length ? (
-              <p className="mt-2 text-sm">
-                Filed {message.detail.proposals.length} proposal(s). Open the Approval Inbox to review them.
-              </p>
-            ) : null}
-          </article>
-        ))}
-      </div>
-      <form onSubmit={onSubmit} className="flex gap-2">
-        <input
-          className="flex-1 rounded-xl border border-line bg-white px-3 py-2"
+    <div className="flex min-h-[70vh] flex-col gap-4">
+      <PageHeader
+        title="Chat"
+        description="Answers cite transaction ids. Money moves only when the policy engine allows it."
+      />
+      {error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      <ScrollArea className="flex-1 rounded-lg border bg-card">
+        <div className="space-y-3 p-4">
+          {messages.length === 0 ? (
+            <EmptyState
+              title="Ask about spending, bills, or a what-if"
+              description="Try: How much did I spend on groceries in September?"
+            />
+          ) : null}
+          {messages.map((message, index) => (
+            <Card
+              key={index}
+              className={
+                message.role === "user"
+                  ? "ml-auto max-w-[90%] border-primary/20 bg-secondary/60 shadow-none"
+                  : "mr-auto max-w-[90%] shadow-none"
+              }
+            >
+              <CardContent className="space-y-2 p-4">
+                <Badge variant="outline" className="capitalize">
+                  {message.role}
+                </Badge>
+                <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.text}</p>
+                {message.detail?.tool_calls?.length ? (
+                  <details className="rounded-md bg-muted/60 p-3 text-sm">
+                    <summary className="cursor-pointer font-medium">Tool calls and evidence</summary>
+                    <ul className="mt-2 space-y-2 text-muted-foreground">
+                      {message.detail.tool_calls.map((call, callIndex) => (
+                        <li key={callIndex}>
+                          <span className="font-medium text-foreground">{call.tool}</span> · {call.outcome}
+                          {call.tier ? ` · tier ${call.tier}` : ""} · {call.rule_id}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                ) : null}
+                {message.detail?.proposals?.length ? (
+                  <p className="text-sm text-muted-foreground">
+                    Filed {message.detail.proposals.length} proposal(s). Open the Approval Inbox to review them.
+                  </p>
+                ) : null}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </ScrollArea>
+
+      <form onSubmit={onSubmit} className="sticky bottom-0 space-y-2 border-t bg-background pt-3">
+        <Textarea
           value={text}
           onChange={(event) => setText(event.target.value)}
           aria-label="Message"
           maxLength={4000}
+          rows={2}
+          placeholder="Ask FinPilot…"
         />
-        <button className="rounded-xl bg-pine px-4 py-2 text-white disabled:opacity-50" disabled={loading}>
-          {loading ? "Working…" : "Send"}
-        </button>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground">Amounts are in USD.</p>
+          <Button type="submit" disabled={loading}>
+            {loading ? "Working…" : "Send"}
+          </Button>
+        </div>
       </form>
-      <p className="text-xs text-ink/50">Amounts are in USD.</p>
     </div>
   );
 }

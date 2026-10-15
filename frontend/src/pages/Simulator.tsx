@@ -11,7 +11,14 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { api, Scenario, usd } from "../api";
+import { api, Scenario } from "@/api";
+import { PageHeader } from "@/components/PageHeader";
+import { EmptyState } from "@/components/EmptyState";
+import { Money } from "@/components/Money";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const presets = [
   {
@@ -57,62 +64,82 @@ export default function Simulator() {
   const line = result?.savings_by_month.map((value, index) => ({ month: `Month ${index + 1}`, savings: value })) || [];
 
   return (
-    <div className="space-y-4">
-      <h1 className="font-serif text-4xl">What-if</h1>
-      <p className="max-w-3xl text-sm text-ink/70">
-        This recomputes the next three months from your history. It does not move money.
-      </p>
+    <div className="space-y-6">
+      <PageHeader
+        title="What-if"
+        description="This recomputes the next three months from your history. It does not move money."
+      />
       <div className="flex flex-wrap gap-2">
         {presets.map((preset) => (
-          <button
-            key={preset.label}
-            className="rounded-lg bg-pine px-3 py-2 text-white disabled:opacity-50"
-            disabled={loading}
-            onClick={() => run(preset.changes)}
-          >
+          <Button key={preset.label} disabled={loading} onClick={() => run(preset.changes)}>
             {preset.label}
-          </button>
+          </Button>
         ))}
       </div>
-      {loading ? <p>Running the scenario…</p> : null}
-      {error ? <p className="text-clay">{error}</p> : null}
-      {!result && !loading ? <p className="text-sm">Choose a scenario to compare before and after.</p> : null}
+      {loading ? <Skeleton className="h-40 w-full" /> : null}
+      {error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+      {!result && !loading ? (
+        <EmptyState title="Choose a scenario" description="Compare before and after without moving money." />
+      ) : null}
       {result ? (
         <>
-          <p>{result.narrative}</p>
-          <p className="text-sm text-ink/70">{result.explanation}</p>
-          <p className="font-serif text-2xl">
-            About {usd(result.monthly_savings)} a month, {usd(result.projected_savings)} over three months.
-          </p>
-          {result.goal ? (
-            <p className="text-sm">
-              {result.goal.name} would move from {usd(result.goal.before)} to {usd(result.goal.after)} if that extra went to the goal.
-            </p>
-          ) : null}
-          <div className="h-80 rounded-2xl border border-line bg-card p-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={bars}>
-                <CartesianGrid stroke="#e4dccb" vertical={false} />
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="before" fill="#c9d7cc" name="Before" />
-                <Bar dataKey="after" fill="#1f6b4a" name="After" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="h-64 rounded-2xl border border-line bg-card p-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={line}>
-                <CartesianGrid stroke="#e4dccb" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="savings" stroke="#1f6b4a" name="Projected savings" />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                About <Money value={result.monthly_savings} /> a month
+              </CardTitle>
+              <CardDescription>
+                <Money value={result.projected_savings} /> over three months. {result.explanation}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <p>{result.narrative}</p>
+              {result.goal ? (
+                <p className="text-muted-foreground">
+                  {result.goal.name} would move from <Money value={result.goal.before} /> to{" "}
+                  <Money value={result.goal.after} /> if that extra went to the goal.
+                </p>
+              ) : null}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Category before / after</CardTitle>
+            </CardHeader>
+            <CardContent className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={bars}>
+                  <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="before" fill="hsl(var(--secondary))" name="Before" />
+                  <Bar dataKey="after" fill="hsl(var(--primary))" name="After" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Projected savings</CardTitle>
+            </CardHeader>
+            <CardContent className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={line}>
+                  <CartesianGrid stroke="hsl(var(--border))" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="savings" stroke="hsl(var(--primary))" name="Projected savings" />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
         </>
       ) : null}
     </div>

@@ -1,11 +1,11 @@
 import { Route, Routes } from "react-router-dom";
-import Layout from "./components/Layout";
-import Audit from "./pages/Audit";
-import Chat from "./pages/Chat";
-import Dashboard from "./pages/Dashboard";
-import Inbox from "./pages/Inbox";
-import Settings from "./pages/Settings";
-import Simulator from "./pages/Simulator";
+import Layout from "@/components/Layout";
+import Audit from "@/pages/Audit";
+import Chat from "@/pages/Chat";
+import Dashboard from "@/pages/Dashboard";
+import Inbox from "@/pages/Inbox";
+import Settings from "@/pages/Settings";
+import Simulator from "@/pages/Simulator";
 
 export default function App() {
   return (
