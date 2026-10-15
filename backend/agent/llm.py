@@ -10,6 +10,38 @@ class LLMUnavailable(Exception):
     pass
 
 
+def _tool_call_dict(call) -> dict:
+    """Keep Gemini thought_signature / extra_content so the next turn is valid."""
+    if hasattr(call, "model_dump"):
+        dumped = call.model_dump(exclude_none=True)
+    elif isinstance(call, dict):
+        dumped = dict(call)
+    else:
+        dumped = {
+            "id": getattr(call, "id", None),
+            "type": "function",
+            "function": {
+                "name": getattr(getattr(call, "function", None), "name", None),
+                "arguments": getattr(getattr(call, "function", None), "arguments", "{}"),
+            },
+        }
+    function = dumped.get("function") or {}
+    raw_args = function.get("arguments") or "{}"
+    try:
+        arguments = json.loads(raw_args) if isinstance(raw_args, str) else (raw_args or {})
+    except json.JSONDecodeError:
+        arguments = {}
+    item = {
+        "id": dumped.get("id") or function.get("name"),
+        "name": function.get("name"),
+        "arguments": arguments,
+        "raw": dumped,
+    }
+    if dumped.get("extra_content") is not None:
+        item["extra_content"] = dumped["extra_content"]
+    return item
+
+
 class LLMClient:
     def __init__(self, api_key: str | None = None, base_url: str | None = None, model: str | None = None):
         self.api_key = api_key if api_key is not None else settings.llm_api_key
@@ -39,14 +71,21 @@ class LLMClient:
         except Exception as exc:
             raise LLMUnavailable("The model call failed.") from exc
         message = response.choices[0].message
-        tool_calls = []
-        for call in message.tool_calls or []:
-            try:
-                arguments = json.loads(call.function.arguments or "{}")
-            except json.JSONDecodeError:
-                arguments = {}
-            tool_calls.append({"id": call.id, "name": call.function.name, "arguments": arguments})
-        return {"content": message.content or "", "tool_calls": tool_calls}
+        tool_calls = [_tool_call_dict(call) for call in message.tool_calls or []]
+        raw_assistant = None
+        if hasattr(message, "model_dump"):
+            raw_assistant = message.model_dump(exclude_none=True)
+            # OpenAI SDK may omit provider extras; merge preserved tool call raw payloads.
+            if tool_calls and raw_assistant.get("tool_calls"):
+                merged = []
+                for original, parsed in zip(raw_assistant["tool_calls"], tool_calls):
+                    merged.append(parsed.get("raw") or original)
+                raw_assistant["tool_calls"] = merged
+        return {
+            "content": message.content or "",
+            "tool_calls": tool_calls,
+            "raw_assistant": raw_assistant,
+        }
 
     def categorize_merchant(self, merchant_key: str) -> str:
         if not self.available():
@@ -93,11 +132,12 @@ class FakeLLM:
         if not self._available:
             raise LLMUnavailable("disabled")
         if not self.steps:
-            return {"content": "I could not find more to add.", "tool_calls": []}
+            return {"content": "I could not find more to add.", "tool_calls": [], "raw_assistant": None}
         step = self.steps.pop(0)
         return {
             "content": step.get("content") or "",
             "tool_calls": step.get("tool_calls") or [],
+            "raw_assistant": step.get("raw_assistant"),
         }
 
     def categorize_merchant(self, merchant_key: str) -> str:
