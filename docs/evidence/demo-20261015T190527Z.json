@@ -1,0 +1,53 @@
+{
+  "generated_at": "20261015T190527Z",
+  "sandbox": true,
+  "ok": true,
+  "steps": [
+    {
+      "name": "health",
+      "ok": true,
+      "detail": "status 200"
+    },
+    {
+      "name": "accounts",
+      "ok": true,
+      "detail": "balance 3706.13"
+    },
+    {
+      "name": "budget",
+      "ok": true,
+      "detail": "categories ['dining', 'education', 'groceries', 'housing', 'other', 'savings', 'shopping', 'subscriptions', 'transport', 'utilities']"
+    },
+    {
+      "name": "over_limit_denied",
+      "ok": true,
+      "detail": "status 403 code PER_ACTION_LIMIT"
+    },
+    {
+      "name": "approve_bill",
+      "ok": true,
+      "detail": "status 200 balance 3706.13 -> 3671.13"
+    },
+    {
+      "name": "duplicate_approve",
+      "ok": true,
+      "detail": "status 409"
+    },
+    {
+      "name": "chat_without_model",
+      "ok": true,
+      "detail": "The assistant is unavailable right now. Your dashboard, audit log, and manual actions still work."
+    },
+    {
+      "name": "dashboard_after_chat_error",
+      "ok": true,
+      "detail": "accounts 200 audit 200"
+    },
+    {
+      "name": "audit_has_denial",
+      "ok": true,
+      "detail": "denials 1"
+    }
+  ],
+  "audit_count": 5
+}
